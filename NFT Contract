@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MyNFT is ERC721, Ownable {
+    using SafeMath for uint256;
+
+    uint256 public nextTokenId;
+
+    constructor(string memory _name, string memory _symbol) ERC721(_name, _symbol) {
+        nextTokenId = 1;
+    }
+
+    function mint(address to) external onlyOwner {
+        uint256 tokenId = nextTokenId;
+        _safeMint(to, tokenId);
+        nextTokenId = nextTokenId.add(1);
+    }
+
+    function mintBatch(address to, uint256 numberOfTokens) external onlyOwner {
+        require(numberOfTokens > 0, "Number of tokens must be greater than 0");
+
+        for (uint256 i = 0; i < numberOfTokens; i++) {
+            mint(to);
+        }
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return "https://api.example.com/metadata/"; // Replace with your metadata API endpoint
+    }
+
+    function setBaseURI(string memory newBaseURI) external onlyOwner {
+        _setBaseURI(newBaseURI);
+    }
+}
