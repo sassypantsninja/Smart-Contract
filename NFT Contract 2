@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract MyNFTCollection is ERC721, Ownable {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
+
+    uint256 public maxSupply = 10000;
+    string private _baseTokenURI;
+
+    constructor(string memory name, string memory symbol, string memory baseTokenURI) ERC721(name, symbol) {
+        _baseTokenURI = baseTokenURI;
+    }
+
+    function mint(address to) external onlyOwner {
+        require(_tokenIdCounter.current() < maxSupply, "Maximum supply reached");
+        uint256 tokenId = _tokenIdCounter.current() + 1;
+        _safeMint(to, tokenId);
+        _tokenIdCounter.increment();
+    }
+
+    function setBaseTokenURI(string memory baseTokenURI) external onlyOwner {
+        _baseTokenURI = baseTokenURI;
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+}
