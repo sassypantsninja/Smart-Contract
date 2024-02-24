@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./IERC20.sol"; // Assuming you have an ERC-20 interface
+
+contract TokenAirdrop {
+    address public owner;
+    IERC20 public token; // Replace with the actual ERC-20 token contract address
+
+    event Airdrop(address indexed receiver, uint256 amount);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can call this function");
+        _;
+    }
+
+    constructor(address _tokenAddress) {
+        owner = msg.sender;
+        token = IERC20(_tokenAddress);
+    }
+
+    function setTokenAddress(address _tokenAddress) external onlyOwner {
+        token = IERC20(_tokenAddress);
+    }
+
+    function airdropTokens(address[] calldata receivers, uint256 amount) external onlyOwner {
+        require(receivers.length > 0, "No receivers provided");
+        require(amount > 0, "Amount should be greater than 0");
+
+        for (uint256 i = 0; i < receivers.length; i++) {
+            address receiver = receivers[i];
+            require(receiver != address(0), "Invalid receiver address");
+
+            // Transfer tokens to the receiver
+            token.transfer(receiver, amount);
+
+            // Emit event for each airdrop
+            emit Airdrop(receiver, amount);
+        }
+    }
+
+    // In case any ETH is sent to this contract, revert it
+    receive() external payable {
+        revert("This contract does not accept Ether");
+    }
+}
