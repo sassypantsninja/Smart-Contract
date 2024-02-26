@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract GamingToken is ERC20, Ownable {
+    // Maximum supply of the gaming token
+    uint256 private constant MAX_SUPPLY = 1000000000 * 10**18; // 1 billion tokens
+
+    // Address to store the reserve fund
+    address private reserveFund;
+
+    // Address to store the gaming platform's wallet
+    address private platformWallet;
+
+    // Events
+    event ReserveFundUpdated(address indexed newReserveFund);
+    event PlatformWalletUpdated(address indexed newPlatformWallet);
+
+    // Constructor
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        address _reserveFund,
+        address _platformWallet
+    ) ERC20(_name, _symbol) {
+        require(_reserveFund != address(0), "Invalid reserve fund address");
+        require(_platformWallet != address(0), "Invalid platform wallet address");
+
+        reserveFund = _reserveFund;
+        platformWallet = _platformWallet;
+
+        // Mint initial supply to the contract creator (you can modify as needed)
+        _mint(msg.sender, 500000000 * 10**18); // Minting 500 million tokens initially
+    }
+
+    // Function to mint additional tokens (only callable by the owner)
+    function mint(address account, uint256 amount) external onlyOwner {
+        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds maximum supply");
+        _mint(account, amount);
+    }
+
+    // Function to update the reserve fund address (only callable by the owner)
+    function updateReserveFund(address newReserveFund) external onlyOwner {
+        require(newReserveFund != address(0), "Invalid reserve fund address");
+        reserveFund = newReserveFund;
+        emit ReserveFundUpdated(newReserveFund);
+    }
+
+    // Function to update the platform wallet address (only callable by the owner)
+    function updatePlatformWallet(address newPlatformWallet) external onlyOwner {
+        require(newPlatformWallet != address(0), "Invalid platform wallet address");
+        platformWallet = newPlatformWallet;
+        emit PlatformWalletUpdated(newPlatformWallet);
+    }
+
+    // Function to transfer tokens to the reserve fund
+    function transferToReserveFund(uint256 amount) external onlyOwner {
+        _transfer(_msgSender(), reserveFund, amount);
+    }
+
+    // Function to transfer tokens to the gaming platform's wallet
+    function transferToPlatformWallet(uint256 amount) external onlyOwner {
+        _transfer(_msgSender(), platformWallet, amount);
+    }
+}
