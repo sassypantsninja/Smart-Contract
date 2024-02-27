@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract L2GasReductionExample is ERC20, Ownable {
+    // L2-specific logic and data here
+
+    // Event emitted when tokens are deposited to L2
+    event Deposit(address indexed account, uint256 amount);
+
+    // Event emitted when tokens are withdrawn from L2
+    event Withdrawal(address indexed account, uint256 amount);
+
+    constructor() ERC20("L2GasToken", "L2GT") {}
+
+    // Function to deposit tokens to L2
+    function deposit(uint256 amount) external {
+        // Perform off-chain operations, update balances, etc.
+
+        // Emit deposit event
+        emit Deposit(msg.sender, amount);
+    }
+
+    // Function to withdraw tokens from L2
+    function withdraw(uint256 amount) external {
+        // Perform off-chain operations, update balances, etc.
+
+        // Emit withdrawal event
+        emit Withdrawal(msg.sender, amount);
+    }
+
+    // Function to commit state to Ethereum mainnet periodically
+    function commitToMainnet() external onlyOwner {
+        // Implement logic to submit the aggregated data to Ethereum mainnet
+        // This could involve creating a Merkle tree or another mechanism to summarize L2 state
+        // and then submitting the root hash or relevant data to the mainnet contract.
+    }
+}
