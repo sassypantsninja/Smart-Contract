@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract StableCoin is ERC20, Ownable {
+    // Address of the centralized entity responsible for maintaining the peg
+    address private oracle;
+
+    // Price precision (e.g., 1 ETH = 1000 USD, precision = 1000)
+    uint256 private constant PRICE_PRECISION = 1000;
+
+    // Target price in USD (1 USD)
+    uint256 private constant TARGET_PRICE = 1 * PRICE_PRECISION;
+
+    // Events
+    event OracleUpdated(address indexed newOracle);
+
+    // Constructor
+    constructor(string memory _name, string memory _symbol, address _oracle) ERC20(_name, _symbol) {
+        require(_oracle != address(0), "Invalid oracle address");
+        oracle = _oracle;
+    }
+
+    // Function to update the oracle address (only callable by the owner)
+    function updateOracle(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "Invalid oracle address");
+        oracle = newOracle;
+        emit OracleUpdated(newOracle);
+    }
+
+    // Function to mint stablecoins when the price is below the target
+    function mint() external {
+        require(msg.sender == oracle, "Only the oracle can mint stablecoins");
+
+        // Calculate the current price (assuming it's scaled by PRICE_PRECISION)
+        uint256 currentPrice = getPrice();
+
+        // If the current price is below the target, mint new stablecoins
+        if (currentPrice < TARGET_PRICE) {
+            uint256 amountToMint = TARGET_PRICE - currentPrice;
+            _mint(oracle, amountToMint);
+        }
+    }
+
+    // Function to burn stablecoins when the price is above the target
+    function burn(uint256 amount) external {
+        require(msg.sender == oracle, "Only the oracle can burn stablecoins");
+
+        // Calculate the current price (assuming it's scaled by PRICE_PRECISION)
+        uint256 currentPrice = getPrice();
+
+        // If the current price is above the target, burn stablecoins
+        if (currentPrice > TARGET_PRICE) {
+            uint256 amountToBurn = currentPrice - TARGET_PRICE;
+            require(amountToBurn <= amount, "Insufficient balance to burn");
+            _burn(oracle, amountToBurn);
+        }
+    }
+
+    // Function to get the current price (example implementation, replace with actual logic)
+    function getPrice() internal view returns (uint256) {
+        // Replace this with your logic to get the current price from an oracle or other source
+        // For simplicity, this example returns a fixed value scaled by PRICE_PRECISION
+        return TARGET_PRICE + 100; // Simulating a price slightly above the target
+    }
+}
