@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract L3ChainContract is Ownable {
+    // Your L3 chain-specific state variables and data structures here
+
+    // Events
+    // event MyEvent(...);
+
+    // Constructor
+    constructor() Ownable() {
+        // Initialize your contract
+    }
+
+    // Your L3 chain-specific functions here
+    // function myFunction(...) public onlyOwner {
+    //     // Implement your logic
+    //     // Emit relevant events
+    // }
+
+    // Optional: Add any other standard functionality or interfaces depending on your use case
+}
