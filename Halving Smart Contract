@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract HalvingContract is Ownable {
+    // Event emitted when the halving occurs
+    event HalvingEvent(uint256 newReward);
+
+    // Initial reward value
+    uint256 public reward;
+
+    // Constructor
+    constructor(uint256 initialReward) {
+        reward = initialReward;
+    }
+
+    // Function to trigger the halving event (only callable by the owner)
+    function triggerHalving() external onlyOwner {
+        // Ensure that the reward is greater than 0 before halving
+        require(reward > 0, "Reward is already zero");
+
+        // Halve the reward
+        reward /= 2;
+
+        // Emit the HalvingEvent
+        emit HalvingEvent(reward);
+    }
+}
