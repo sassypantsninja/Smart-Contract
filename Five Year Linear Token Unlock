@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract LinearTokenUnlock is Ownable {
+    IERC20 public token;
+    address public beneficiary;
+    uint256 public unlockStartTime;
+    uint256 public unlockDuration;
+    uint256 public totalTokens;
+    uint256 public tokensWithdrawn;
+
+    event TokensUnlocked(uint256 amount);
+
+    constructor(
+        address _token,
+        address _beneficiary,
+        uint256 _unlockStartTime,
+        uint256 _unlockDuration,
+        uint256 _totalTokens
+    ) {
+        require(_unlockStartTime >= block.timestamp, "Unlock start time must be in the future");
+        require(_totalTokens > 0, "Total tokens must be greater than zero");
+
+        token = IERC20(_token);
+        beneficiary = _beneficiary;
+        unlockStartTime = _unlockStartTime;
+        unlockDuration = _unlockDuration;
+        totalTokens = _totalTokens;
+    }
+
+    function unlockTokens() external onlyOwner {
+        require(block.timestamp >= unlockStartTime, "Unlock has not started yet");
+
+        uint256 unlockPeriod = (block.timestamp - unlockStartTime) / unlockDuration;
+        uint256 unlockableTokens = totalTokens / 5; // Unlocking over five years
+
+        // Ensure tokens are not withdrawn more than the total allocation
+        require(unlockPeriod < 5, "Unlock period has ended");
+
+        uint256 tokensToUnlock = unlockPeriod * unlockableTokens - tokensWithdrawn;
+        require(tokensToUnlock > 0, "No tokens to unlock at the moment");
+
+        tokensWithdrawn += tokensToUnlock;
+        token.transfer(beneficiary, tokensToUnlock);
+
+        emit TokensUnlocked(tokensToUnlock);
+    }
+
+    function remainingTokens() external view returns (uint256) {
+        uint256 unlockPeriod = (block.timestamp - unlockStartTime) / unlockDuration;
+        uint256 unlockableTokens = totalTokens / 5;
+        uint256 remainingTokens = (unlockPeriod * unlockableTokens) - tokensWithdrawn;
+
+        return remainingTokens;
+    }
+}
