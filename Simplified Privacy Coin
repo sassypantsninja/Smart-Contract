@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract PrivacyCoin {
+    mapping(address => uint256) private balances;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    function transfer(address to, uint256 value, bytes32 secretKey) external {
+        require(balances[msg.sender] >= value, "Insufficient balance");
+
+        // Simple "encryption" for demonstration purposes
+        bytes32 encryptedValue = keccak256(abi.encodePacked(value, secretKey));
+
+        // Update balances
+        balances[msg.sender] -= value;
+        balances[to] += uint256(encryptedValue);
+
+        emit Transfer(msg.sender, to, value);
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return balances[account];
+    }
+}
