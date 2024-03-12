@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract RWAToken is ERC20 {
+    address public owner;
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 initialSupply,
+        address _owner
+    ) ERC20(name, symbol) {
+        _mint(_msgSender(), initialSupply);
+        owner = _owner;
+    }
+
+    function transferOwnership(address newOwner) external {
+        require(msg.sender == owner, "Only the owner can transfer ownership");
+        owner = newOwner;
+    }
+}
