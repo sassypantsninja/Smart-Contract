@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract AlgorithmicStablecoin is ERC20, Ownable {
+    uint256 constant INITIAL_SUPPLY = 1000000 * (10**18); // Initial supply set to 1 million tokens
+    uint256 constant TARGET_PRICE = 1 * (10**18); // Target price set to 1 USD
+
+    event Mint(address indexed to, uint256 amount);
+    event Burn(address indexed from, uint256 amount);
+
+    constructor() ERC20("Algorithmic Stablecoin", "ALGO") {
+        _mint(msg.sender, INITIAL_SUPPLY);
+    }
+
+    // Function to mint new tokens when the price is above the target
+    function mint() external {
+        uint256 currentPrice = getCurrentPrice();
+        if (currentPrice > TARGET_PRICE) {
+            uint256 amountToMint = currentPrice - TARGET_PRICE;
+            _mint(msg.sender, amountToMint);
+            emit Mint(msg.sender, amountToMint);
+        }
+    }
+
+    // Function to burn tokens when the price is below the target
+    function burn(uint256 amount) external {
+        uint256 currentPrice = getCurrentPrice();
+        if (currentPrice < TARGET_PRICE) {
+            _burn(msg.sender, amount);
+            emit Burn(msg.sender, amount);
+        }
+    }
+
+    // Function to get the current price (example implementation, replace with actual logic)
+    function getCurrentPrice() internal pure returns (uint256) {
+        // Replace this with your logic to determine the current price
+        // For simplicity, this example returns a fixed value
+        return TARGET_PRICE + 100; // Simulating a price slightly above the target
+    }
+}
