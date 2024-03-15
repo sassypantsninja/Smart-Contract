@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract TradingBot {
+    address public constant DEX_ADDRESS = 0x1234567890123456789012345678901234567890; // Address of the DEX
+    address public constant TOKEN_ADDRESS = 0x1234567890123456789012345678901234567890; // Address of the token to trade
+    uint256 public constant TRADE_AMOUNT = 100; // Amount of token to trade
+
+    function executeTrade() external {
+        // Approve the DEX to spend tokens
+        IERC20(TOKEN_ADDRESS).approve(DEX_ADDRESS, TRADE_AMOUNT);
+
+        // Execute the trade on the DEX
+        // This is a hypothetical function, replace with actual trading logic
+        // DEX.trade(TRADE_AMOUNT);
+    }
+}
