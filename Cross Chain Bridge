@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract CrossChainBridge {
+    address public owner;
+    address public destinationChainBridge; // Address of the bridge contract on the destination chain
+    mapping(bytes32 => bool) public processedTransactions; // Mapping to track processed transactions
+
+    event Deposit(address indexed sender, uint256 amount, bytes32 indexed transactionId);
+    event Withdrawal(address indexed sender, uint256 amount, bytes32 indexed transactionId);
+
+    constructor(address _destinationChainBridge) {
+        owner = msg.sender;
+        destinationChainBridge = _destinationChainBridge;
+    }
+
+    // Function to deposit tokens into the bridge contract
+    function deposit(address token, uint256 amount) external {
+        bytes32 transactionId = keccak256(abi.encodePacked(msg.sender, token, amount));
+        require(!processedTransactions[transactionId], "Transaction already processed");
+
+        // Lock tokens in this contract
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
+
+        emit Deposit(msg.sender, amount, transactionId);
+    }
+
+    // Function to withdraw tokens from the bridge contract
+    function withdraw(address token, uint256 amount, bytes32 transactionId) external {
+        require(msg.sender == owner, "Only the owner can withdraw tokens");
+        require(!processedTransactions[transactionId], "Transaction already processed");
+
+        // Mint tokens on the destination chain via the destination bridge
+        // (This is a hypothetical function call, replace with actual logic)
+        // DestinationChainBridge(destinationChainBridge).mintToken(token, amount);
+
+        // Mark transaction as processed
+        processedTransactions[transactionId] = true;
+
+        emit Withdrawal(msg.sender, amount, transactionId);
+    }
+
+    // Function to update the destination chain bridge address
+    function updateDestinationChainBridge(address newDestinationChainBridge) external {
+        require(msg.sender == owner, "Only the owner can update the destination bridge");
+        destinationChainBridge = newDestinationChainBridge;
+    }
+}
