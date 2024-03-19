@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+
+contract AirdropClaimPage is Ownable {
+    using Address for address;
+
+    mapping(address => uint256) public claimedAmount;
+    mapping(address => bool) public eligibleUsers;
+    uint256 public totalAirdropAmount;
+
+    event AirdropClaimed(address indexed user, uint256 amount);
+
+    constructor() {
+        totalAirdropAmount = 1000 ether; // Total amount of tokens allocated for the airdrop
+    }
+
+    // Function to check eligibility for airdrop
+    function isEligible(address user) external view returns (bool) {
+        return eligibleUsers[user];
+    }
+
+    // Function to set eligibility for users
+    function setEligibility(address[] calldata users) external onlyOwner {
+        for (uint256 i = 0; i < users.length; i++) {
+            eligibleUsers[users[i]] = true;
+        }
+    }
+
+    // Function to claim tokens from the airdrop
+    function claimTokens() external {
+        require(eligibleUsers[msg.sender], "User is not eligible for the airdrop");
+        require(claimedAmount[msg.sender] == 0, "Tokens already claimed");
+
+        claimedAmount[msg.sender] = totalAirdropAmount;
+        totalAirdropAmount -= totalAirdropAmount; // Tokens claimed, reduce total airdrop amount
+
+        // Transfer tokens to the user
+        // Replace this with your token transfer logic
+        // token.transfer(msg.sender, totalAirdropAmount);
+
+        emit AirdropClaimed(msg.sender, totalAirdropAmount);
+    }
+}
