@@ -1,0 +1,44 @@
+// Example Oracle Service in Node.js
+
+const Web3 = require('web3');
+const Twitter = require('twitter');
+
+// Initialize Web3
+const web3 = new Web3('ws://localhost:8545'); // Use the URL of your Ethereum node
+
+// Initialize Twitter client
+const client = new Twitter({
+  consumer_key: 'YOUR_TWITTER_CONSUMER_KEY',
+  consumer_secret: 'YOUR_TWITTER_CONSUMER_SECRET',
+  access_token_key: 'YOUR_TWITTER_ACCESS_TOKEN_KEY',
+  access_token_secret: 'YOUR_TWITTER_ACCESS_TOKEN_SECRET'
+});
+
+// Define your contract ABI and address
+const contractABI = []; // Your contract's ABI
+const contractAddress = 'YOUR_CONTRACT_ADDRESS';
+
+// Initialize your contract
+const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+// Listen for events from your contract
+contract.events.TweetEvent({}, (error, event) => {
+  if (error) {
+    console.error('Error in event:', error);
+    return;
+  }
+  
+  console.log('Received event:', event);
+
+  // Extract tweet content from the event
+  const tweetContent = event.returnValues.tweetContent;
+
+  // Post tweet
+  client.post('statuses/update', { status: tweetContent }, function(error, tweet, response) {
+    if (error) {
+      console.error('Error posting tweet:', error);
+      return;
+    }
+    console.log('Tweet posted:', tweet);
+  });
+});
