@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// Importing IPFS library
+import "./IPFS.sol";
+
+contract LayerZeroSmartContract {
+    IPFS private ipfs;
+
+    // Event emitted when a new file is uploaded
+    event FileUploaded(address indexed uploader, string ipfsHash);
+
+    constructor(address _ipfsAddress) {
+        ipfs = IPFS(_ipfsAddress);
+    }
+
+    // Function to upload a file to IPFS
+    function uploadFile(string memory _fileContent) external {
+        // Call IPFS contract to add file to IPFS
+        string memory ipfsHash = ipfs.add(_fileContent);
+
+        // Emit event
+        emit FileUploaded(msg.sender, ipfsHash);
+    }
+}
