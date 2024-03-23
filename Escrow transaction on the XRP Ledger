@@ -1,0 +1,29 @@
+from xrpl.wallet import Wallet
+from xrpl.core import addresscodec
+from xrpl.core.binarycodec import XRPLBinaryCodec
+from xrpl.ledger import models
+
+# Create sender, destination, and escrow addresses
+sender_address = "rXXXXXXXXXXXXXXX"
+destination_address = "rYYYYYYYYYYYYYYY"
+escrow_address = "rZZZZZZZZZZZZZZZ"
+
+# Create a wallet using the sender's secret key
+sender_wallet = Wallet(seed="your_sender_secret_key")
+
+# Construct EscrowCreate transaction
+escrow_create = models.EscrowCreate(
+    account=sender_address,
+    destination=destination_address,
+    amount="1000",  # Amount of XRP to lock in escrow
+    cancel_after=1000000,  # Cancel transaction after 1000000 ledger sequence
+    finish_after=500000,  # Transaction becomes executable after 500000 ledger sequence
+    condition="YOUR_CONDITION",  # Hash of the condition for releasing the escrowed XRP
+)
+
+# Sign the transaction
+escrow_create_signed = escrow_create.sign(sender_wallet)
+
+# Submit the transaction to the XRP Ledger
+submit_response = escrow_create_signed.submit()
+print(submit_response)
