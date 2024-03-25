@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract LiquidityPool {
+    struct PoolToken {
+        uint256 totalSupply;
+        mapping(address => uint256) balances;
+    }
+
+    mapping(address => PoolToken) public poolTokens;
+
+    event Deposit(address indexed user, address indexed tokenA, address indexed tokenB, uint256 amountA, uint256 amountB);
+    event Withdraw(address indexed user, address indexed tokenA, address indexed tokenB, uint256 amountA, uint256 amountB);
+
+    function deposit(address tokenA, address tokenB, uint256 amountA, uint256 amountB) external {
+        require(amountA > 0 && amountB > 0, "Amount must be greater than zero");
+
+        // Transfer tokens from user to contract
+        IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
+        IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
+
+        // Update user's balance in the pool
+        poolTokens[msg.sender].balances[tokenA] += amountA;
+        poolTokens[msg.sender].balances[tokenB] += amountB;
+
+        // Update total supply of pool tokens
+        poolTokens[msg.sender].totalSupply += 1;
+
+        emit Deposit(msg.sender, tokenA, tokenB, amountA, amountB);
+    }
+
+    function withdraw(address tokenA, address tokenB, uint256 amountA, uint256 amountB) external {
+        require(amountA > 0 && amountB > 0, "Amount must be greater than zero");
+
+        // Transfer tokens from contract to user
+        IERC20(tokenA).transfer(msg.sender, amountA);
+        IERC20(tokenB).transfer(msg.sender, amountB);
+
+        // Update user's balance in the pool
+        poolTokens[msg.sender].balances[tokenA] -= amountA;
+        poolTokens[msg.sender].balances[tokenB] -= amountB;
+
+        // Update total supply of pool tokens
+        poolTokens[msg.sender].totalSupply -= 1;
+
+        emit Withdraw(msg.sender, tokenA, tokenB, amountA, amountB);
+    }
+}
