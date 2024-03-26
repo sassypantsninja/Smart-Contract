@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract TokenBurnContract {
+    // ERC20 token contract
+    ERC20 public token;
+
+    // Event to log token burn
+    event TokensBurned(address indexed burner, uint256 amount);
+
+    // Constructor to set the token contract address
+    constructor(address _token) {
+        token = ERC20(_token);
+    }
+
+    // Function to burn tokens
+    function burnTokens(uint256 _amount) external {
+        // Transfer tokens from caller to the burn address
+        token.transferFrom(msg.sender, address(0), _amount);
+
+        // Emit event to log token burn
+        emit TokensBurned(msg.sender, _amount);
+    }
+}
