@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract HalvingSmartContract {
+    uint256 public blockReward; // Current block reward
+    uint256 public halvingInterval; // Interval at which halving occurs
+    uint256 public nextHalvingBlock; // Block number of the next halving
+    uint256 public blocksSinceLastHalving; // Number of blocks since the last halving
+
+    event Halving(uint256 newBlockReward);
+
+    constructor(uint256 _initialBlockReward, uint256 _halvingInterval) {
+        blockReward = _initialBlockReward;
+        halvingInterval = _halvingInterval;
+        nextHalvingBlock = block.number + halvingInterval;
+        blocksSinceLastHalving = 0;
+    }
+
+    // Function to simulate mining and trigger halving when necessary
+    function mine() external {
+        blocksSinceLastHalving++;
+
+        if (block.number >= nextHalvingBlock) {
+            blockReward = blockReward / 2; // Halve the block reward
+            nextHalvingBlock = block.number + halvingInterval; // Update next halving block
+            blocksSinceLastHalving = 0; // Reset blocks since last halving counter
+
+            emit Halving(blockReward);
+        }
+    }
+}
