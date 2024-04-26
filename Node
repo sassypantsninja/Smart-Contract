@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract NodeManagement {
+    address public nodeOperator;
+    bool public nodeRunning;
+
+    event NodeStarted(address indexed operator);
+    event NodeStopped(address indexed operator);
+
+    constructor() {
+        nodeOperator = msg.sender;
+        nodeRunning = false;
+    }
+
+    modifier onlyOperator() {
+        require(msg.sender == nodeOperator, "Only node operator can call this function");
+        _;
+    }
+
+    function startNode() external onlyOperator {
+        require(!nodeRunning, "Node is already running");
+        nodeRunning = true;
+        emit NodeStarted(nodeOperator);
+    }
+
+    function stopNode() external onlyOperator {
+        require(nodeRunning, "Node is already stopped");
+        nodeRunning = false;
+        emit NodeStopped(nodeOperator);
+    }
+}
