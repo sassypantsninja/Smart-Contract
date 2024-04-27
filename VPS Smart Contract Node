@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract VpsManagement {
+    struct Vps {
+        address owner;
+        bool allocated;
+    }
+
+    mapping(address => Vps) public vpsList;
+
+    event VpsAllocated(address indexed owner, address indexed vpsAddress);
+    event VpsDeallocated(address indexed owner, address indexed vpsAddress);
+
+    function allocateVps(address _vpsAddress) external {
+        require(!vpsList[_vpsAddress].allocated, "VPS already allocated");
+        vpsList[_vpsAddress] = Vps(msg.sender, true);
+        emit VpsAllocated(msg.sender, _vpsAddress);
+    }
+
+    function deallocateVps(address _vpsAddress) external {
+        require(vpsList[_vpsAddress].allocated, "VPS not allocated");
+        require(msg.sender == vpsList[_vpsAddress].owner, "Only VPS owner can deallocate");
+        delete vpsList[_vpsAddress];
+        emit VpsDeallocated(msg.sender, _vpsAddress);
+    }
+}
