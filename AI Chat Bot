@@ -1,0 +1,49 @@
+pragma solidity ^0.8.0;
+
+// Import OpenZeppelin's Ownable contract for access control
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract Chatbot is Ownable {
+    // State variables
+    string public botName;
+    string public greetingMessage;
+    mapping(address => bool) public authorizedUsers;
+
+    // Event to log when a new user is authorized
+    event UserAuthorized(address indexed user);
+
+    // Constructor to set initial values
+    constructor(string memory _botName, string memory _greetingMessage) {
+        botName = _botName;
+        greetingMessage = _greetingMessage;
+    }
+
+    // Function to allow only authorized users to interact with the chatbot
+    modifier onlyAuthorized() {
+        require(authorizedUsers[msg.sender], "Sender is not authorized");
+        _;
+    }
+
+    // Function to authorize a new user
+    function authorizeUser(address _user) external onlyOwner {
+        authorizedUsers[_user] = true;
+        emit UserAuthorized(_user);
+    }
+
+    // Function to revoke authorization of a user
+    function revokeAuthorization(address _user) external onlyOwner {
+        authorizedUsers[_user] = false;
+    }
+
+    // Function to set a new greeting message
+    function setGreetingMessage(string memory _newGreeting) external onlyOwner {
+        greetingMessage = _newGreeting;
+    }
+
+    // Function to interact with the chatbot
+    function interact(string memory _message) external onlyAuthorized returns (string memory) {
+        // Here you would implement your AI chatbot logic
+        // For simplicity, let's just echo back the message
+        return string(abi.encodePacked("You said: ", _message));
+    }
+}
