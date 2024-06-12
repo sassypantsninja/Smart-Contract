@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract MempoolMonitor {
+    address public owner;
+
+    event MempoolEvent(address indexed from, string message, uint256 timestamp);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not the contract owner");
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function triggerEvent(string memory message) public onlyOwner {
+        emit MempoolEvent(msg.sender, message, block.timestamp);
+    }
+}
