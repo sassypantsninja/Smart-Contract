@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract TwoFactorMultiSigWallet {
+    address[] public owners;
+    uint public requiredSignatures;
+    uint public requiredAuthCode;
+    uint public transactionCount;
+
+    struct Transaction {
+        address to;
+        uint value;
+        bytes data;
+        bool executed;
+        uint authCode;
+        uint numSignatures;
+    }
+
+    mapping(uint => Transaction) public transactions;
+    mapping(uint => mapping(address => bool)) public signatures;
+    mapping(address => bool) public isOwner;
+
+    event Deposit(address indexed sender, uint amount);
+    event SubmitTransaction(uint indexed txId, address indexed owner);
+    event ConfirmTransaction(uint indexed txId, address indexed owner);
+    event ExecuteTransaction(uint indexed txId, address indexed owner);
+    event RevokeConfirmation(uint indexed txId, address indexed owner);
+
+    modifier onlyOwner() {
+        require(isOwner[msg.sender], "Not owner");
+        _;
+    }
+
+    modifier txExists(uint _txId) {
+        require(_txId < transactionCount, "Tx does not exist");
+        _;
+    }
+
+    modifier notExecuted(uint _txId) {
+        require(!transactions[_txId].executed, "Tx already executed");
+        _;
+    }
+
+    modifier notConfirmed(uint _txId) {
+        require(!signatures[_txId][msg.sender], "Tx already confirmed");
+        _;
+    }
+
+    constructor(address[] memory _owners, uint _requiredSignatures, uint _requiredAuthCode) {
+        require(_owners.length > 0, "Owners required");
+        require(_requiredSignatures > 0 && _requiredSignatures <= _owners.length, "Invalid number of required signatures");
+        require(_requiredAuthCode > 0, "Invalid authentication code");
+
+        for (uint i = 0; i < _owners.length; i++) {
+            address owner = _owners[i];
+            require(owner != address(0), "Invalid owner");
+            require(!isOwner[owner], "Owner not unique");
+
+            isOwner[owner] = true;
+            owners.push(owner);
+        }
+
+        requiredSignatures = _requiredSignatures;
+        requiredAuthCode = _requiredAuthCode;
+    }
+
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    function submitTransaction(address _to, uint _value, bytes memory _data, uint _authCode) 
+        public onlyOwner {
+        require(_authCode == requiredAuthCode, "Invalid authentication code");
+
+        uint txId = transactionCount;
+
+        transactions[txId] = Transaction({
+            to: _to,
+            value: _value,
+            data: _data,
+            executed: false,
+            authCode: _authCode,
+            numSignatures: 0
+        });
+
+        transactionCount++;
+        emit SubmitTransaction(txId, msg.sender);
+    }
+
+    function confirmTransaction(uint _txId) 
+        public onlyOwner txExists(_txId) notExecuted(_txId) notConfirmed(_txId) {
+        Transaction storage transaction = transactions[_txId];
+        transaction.numSignatures++;
+        signatures[_txId][msg.sender] = true;
+        emit ConfirmTransaction(_txId, msg.sender);
+    }
+
+    function executeTransaction(uint _txId) 
+        public onlyOwner txExists(_txId) notExecuted(_txId) {
+        Transaction storage transaction = transactions[_txId];
+        require(transaction.numSignatures >= requiredSignatures, "Not enough confirmations");
+        require(transaction.authCode == requiredAuthCode, "Invalid authentication code");
+
+        transaction.executed = true;
+        (bool success,) = transaction.to.call{value: transaction.value}(transaction.data);
+        require(success, "Tx failed");
+
+        emit ExecuteTransaction(_txId, msg.sender);
+    }
+
+    function revokeConfirmation(uint _txId) 
+        public onlyOwner txExists(_txId) notExecuted(_txId) {
+        require(signatures[_txId][msg.sender], "Tx not confirmed");
+
+        Transaction storage transaction = transactions[_txId];
+        transaction.numSignatures--;
+        signatures[_txId][msg.sender] = false;
+        emit RevokeConfirmation(_txId, msg.sender);
+    }
+}
