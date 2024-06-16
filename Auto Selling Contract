@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+
+contract AutoSelling {
+    address public owner;
+    IERC20 public token;
+    IUniswapV2Router02 public uniswapRouter;
+    address public WETH;
+    uint256 public sellPriceThreshold; // Price in wei
+
+    event TokensSold(address indexed seller, uint256 tokenAmount, uint256 ethReceived);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not the contract owner");
+        _;
+    }
+
+    constructor(
+        address _token,
+        address _uniswapRouter,
+        uint256 _sellPriceThreshold
+    ) {
+        owner = msg.sender;
+        token = IERC20(_token);
+        uniswapRouter = IUniswapV2Router02(_uniswapRouter);
+        WETH = uniswapRouter.WETH();
+        sellPriceThreshold = _sellPriceThreshold;
+    }
+
+    function setSellPriceThreshold(uint256 _sellPriceThreshold) external onlyOwner {
+        sellPriceThreshold = _sellPriceThreshold;
+    }
+
+    function sellTokens(uint256 tokenAmount) external onlyOwner {
+        require(tokenAmount > 0, "Token amount must be greater than zero");
+
+        token.approve(address(uniswapRouter), tokenAmount);
+
+        address[] memory path = new address[](2);
+        path[0] = address(token);
+        path[1] = WETH;
+
+        uint256[] memory amountsOut = uniswapRouter.getAmountsOut(tokenAmount, path);
+        uint256 ethAmountOut = amountsOut[1];
+        require(ethAmountOut >= sellPriceThreshold, "Price threshold not met");
+
+        uniswapRouter.swapExactTokensForETH(
+            tokenAmount,
+            ethAmountOut,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        emit TokensSold(msg.sender, tokenAmount, ethAmountOut);
+    }
+
+    function withdrawETH() external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No ETH to withdraw");
+
+        (bool success, ) = owner.call{value: balance}("");
+        require(success, "ETH transfer failed");
+    }
+
+    receive() external payable {}
+}
