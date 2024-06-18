@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract AISoftware {
+
+    address public owner;
+    uint256 public usageFee;
+    string public currentVersion;
+    mapping(address => uint256) public balances;
+    
+    event UsagePaid(address indexed user, uint256 amount);
+    event VersionUpdated(string oldVersion, string newVersion);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can perform this action.");
+        _;
+    }
+
+    constructor(uint256 _usageFee, string memory _initialVersion) {
+        owner = msg.sender;
+        usageFee = _usageFee;
+        currentVersion = _initialVersion;
+    }
+
+    function useAI() external payable {
+        require(msg.value >= usageFee, "Insufficient funds to use the AI.");
+        balances[msg.sender] += msg.value;
+        emit UsagePaid(msg.sender, msg.value);
+    }
+
+    function updateVersion(string memory newVersion) external onlyOwner {
+        string memory oldVersion = currentVersion;
+        currentVersion = newVersion;
+        emit VersionUpdated(oldVersion, newVersion);
+    }
+
+    function withdrawFunds(uint256 amount) external onlyOwner {
+        require(amount <= address(this).balance, "Insufficient balance in contract.");
+        payable(owner).transfer(amount);
+    }
+
+    function setUsageFee(uint256 newFee) external onlyOwner {
+        usageFee = newFee;
+    }
+
+    function getContractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function getUserBalance(address user) external view returns (uint256) {
+        return balances[user];
+    }
+}
