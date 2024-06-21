@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// Import the ERC20 interface
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+// Interoperability contract
+contract InteroperabilityContract {
+    address public owner;
+    address public oracle;
+    IERC20 public token;
+
+    // Event to log token transfers
+    event TokensTransferred(address indexed from, address indexed to, uint256 amount, string targetBlockchain);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
+        _;
+    }
+
+    modifier onlyOracle() {
+        require(msg.sender == oracle, "Only oracle can perform this action");
+        _;
+    }
+
+    constructor(address _tokenAddress, address _oracle) {
+        owner = msg.sender;
+        token = IERC20(_tokenAddress);
+        oracle = _oracle;
+    }
+
+    // Function to transfer tokens to another blockchain
+    function transferTokens(address to, uint256 amount, string memory targetBlockchain) public {
+        require(token.transferFrom(msg.sender, address(this), amount), "Token transfer failed");
+        emit TokensTransferred(msg.sender, to, amount, targetBlockchain);
+    }
+
+    // Function to release tokens on this blockchain
+    function releaseTokens(address to, uint256 amount) public onlyOracle {
+        require(token.transfer(to, amount), "Token transfer failed");
+    }
+
+    // Function to update the oracle address
+    function updateOracle(address newOracle) public onlyOwner {
+        oracle = newOracle;
+    }
+}
