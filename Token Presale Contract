@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract PresaleToken is ERC20, Ownable {
+    uint256 public presalePrice;
+    uint256 public presaleStart;
+    uint256 public presaleEnd;
+    uint256 public presaleCap;
+    uint256 public totalTokensSold;
+    bool public presaleActive;
+
+    mapping(address => uint256) public contributions;
+
+    event TokensPurchased(address indexed buyer, uint256 amount);
+    event PresaleStarted(uint256 startTime, uint256 endTime);
+    event PresaleEnded(uint256 endTime);
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 _presalePrice,
+        uint256 _presaleCap
+    ) ERC20(name, symbol) {
+        presalePrice = _presalePrice;
+        presaleCap = _presaleCap;
+    }
+
+    function startPresale(uint256 duration) external onlyOwner {
+        presaleStart = block.timestamp;
+        presaleEnd = block.timestamp + duration;
+        presaleActive = true;
+        emit PresaleStarted(presaleStart, presaleEnd);
+    }
+
+    function endPresale() external onlyOwner {
+        presaleEnd = block.timestamp;
+        presaleActive = false;
+        emit PresaleEnded(presaleEnd);
+    }
+
+    function buyTokens() external payable {
+        require(presaleActive, "Presale is not active");
+        require(block.timestamp >= presaleStart && block.timestamp <= presaleEnd, "Presale period has ended");
+        require(totalTokensSold + msg.value <= presaleCap, "Presale cap exceeded");
+
+        uint256 tokensToBuy = msg.value / presalePrice;
+        require(tokensToBuy > 0, "Insufficient ETH sent");
+
+        totalTokensSold += tokensToBuy;
+        contributions[msg.sender] += tokensToBuy;
+        _mint(msg.sender, tokensToBuy);
+
+        emit TokensPurchased(msg.sender, tokensToBuy);
+    }
+
+    function withdrawFunds() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+    function withdrawUnsoldTokens() external onlyOwner {
+        require(block.timestamp > presaleEnd, "Presale is still active");
+        uint256 unsoldTokens = presaleCap - totalTokensSold;
+        _mint(owner(), unsoldTokens);
+    }
+}
