@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract SocialFiToken is ERC20, Ownable {
+    uint256 public rewardPerLike;
+    uint256 public totalPosts;
+
+    struct Post {
+        uint256 id;
+        address creator;
+        string content;
+        uint256 likes;
+        uint256 timestamp;
+    }
+
+    mapping(uint256 => Post) public posts;
+    mapping(address => uint256[]) public userPosts;
+    mapping(uint256 => mapping(address => bool)) public likes;
+
+    event PostCreated(uint256 indexed postId, address indexed creator, string content, uint256 timestamp);
+    event PostLiked(uint256 indexed postId, address indexed liker, uint256 likes);
+    event RewardClaimed(address indexed user, uint256 amount);
+
+    constructor(uint256 _rewardPerLike) ERC20("SocialFiToken", "SFT") {
+        rewardPerLike = _rewardPerLike;
+        _mint(msg.sender, 1000000 * 10 ** decimals()); // Mint initial supply to the contract owner
+    }
+
+    function createPost(string memory content) public {
+        totalPosts++;
+        posts[totalPosts] = Post(totalPosts, msg.sender, content, 0, block.timestamp);
+        userPosts[msg.sender].push(totalPosts);
+
+        emit PostCreated(totalPosts, msg.sender, content, block.timestamp);
+    }
+
+    function likePost(uint256 postId) public {
+        require(postId > 0 && postId <= totalPosts, "Post does not exist");
+        require(!likes[postId][msg.sender], "You have already liked this post");
+
+        posts[postId].likes++;
+        likes[postId][msg.sender] = true;
+
+        emit PostLiked(postId, msg.sender, posts[postId].likes);
+    }
+
+    function claimRewards(uint256 postId) public {
+        require(postId > 0 && postId <= totalPosts, "Post does not exist");
+        Post storage post = posts[postId];
+        require(post.creator == msg.sender, "You are not the creator of this post");
+
+        uint256 rewardAmount = post.likes * rewardPerLike;
+        _transfer(owner(), msg.sender, rewardAmount);
+
+        emit RewardClaimed(msg.sender, rewardAmount);
+    }
+
+    function setRewardPerLike(uint256 newRewardPerLike) public onlyOwner {
+        rewardPerLike = newRewardPerLike;
+    }
+}
