@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract GuaranteedWLMint is ERC721, Ownable {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
+
+    uint256 public maxSupply;
+    uint256 public mintPrice;
+    bool public isMintActive;
+    mapping(address => bool) public whitelist;
+
+    event Minted(address indexed minter, uint256 tokenId);
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 _maxSupply,
+        uint256 _mintPrice
+    ) ERC721(name, symbol) {
+        maxSupply = _maxSupply;
+        mintPrice = _mintPrice;
+    }
+
+    modifier onlyWhitelisted() {
+        require(whitelist[msg.sender], "Not whitelisted");
+        _;
+    }
+
+    function addToWhitelist(address[] memory addresses) public onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            whitelist[addresses[i]] = true;
+        }
+    }
+
+    function removeFromWhitelist(address[] memory addresses) public onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            whitelist[addresses[i]] = false;
+        }
+    }
+
+    function toggleMintActive() public onlyOwner {
+        isMintActive = !isMintActive;
+    }
+
+    function mint() public payable onlyWhitelisted {
+        require(isMintActive, "Minting is not active");
+        require(_tokenIds.current() < maxSupply, "Max supply reached");
+        require(msg.value == mintPrice, "Incorrect ETH amount");
+
+        _tokenIds.increment();
+        uint256 newTokenId = _tokenIds.current();
+        _safeMint(msg.sender, newTokenId);
+
+        emit Minted(msg.sender, newTokenId);
+    }
+
+    function withdraw() public onlyOwner {
+        uint256 balance = address(this).balance;
+        payable(owner()).transfer(balance);
+    }
+}
