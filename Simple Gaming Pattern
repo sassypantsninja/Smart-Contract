@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract GamingToken is ERC20, Ownable {
+    constructor() ERC20("GamingToken", "GT") {
+        _mint(msg.sender, 1000000 * 10 ** decimals());
+    }
+
+    function mint(address to, uint256 amount) public onlyOwner {
+        _mint(to, amount);
+    }
+}
+
+contract GamingPlatform is Ownable {
+    GamingToken public gamingToken;
+    uint256 public participationFee;
+    uint256 public rewardAmount;
+    uint256 public gameEndTime;
+
+    struct Player {
+        uint256 score;
+        bool hasParticipated;
+    }
+
+    mapping(address => Player) public players;
+
+    event GameStarted(uint256 endTime);
+    event PlayerParticipated(address indexed player);
+    event PlayerScored(address indexed player, uint256 score);
+    event PlayerRewarded(address indexed player, uint256 reward);
+
+    constructor(address tokenAddress, uint256 fee, uint256 reward) {
+        gamingToken = GamingToken(tokenAddress);
+        participationFee = fee;
+        rewardAmount = reward;
+    }
+
+    function startGame(uint256 duration) public onlyOwner {
+        gameEndTime = block.timestamp + duration;
+        emit GameStarted(gameEndTime);
+    }
+
+    function participateInGame() public {
+        require(block.timestamp < gameEndTime, "Game has ended");
+        require(!players[msg.sender].hasParticipated, "Already participated");
+        
+        gamingToken.transferFrom(msg.sender, address(this), participationFee);
+        players[msg.sender].hasParticipated = true;
+
+        emit PlayerParticipated(msg.sender);
+    }
+
+    function submitScore(uint256 score) public {
+        require(players[msg.sender].hasParticipated, "Not participated in the game");
+        players[msg.sender].score = score;
+
+        emit PlayerScored(msg.sender, score);
+    }
+
+    function rewardPlayers(address[] memory winners) public onlyOwner {
+        require(block.timestamp >= gameEndTime, "Game is still ongoing");
+
+        for (uint256 i = 0; i < winners.length; i++) {
+            address winner = winners[i];
+            require(players[winner].hasParticipated, "Player did not participate");
+            
+            gamingToken.transfer(winner, rewardAmount);
+
+            emit PlayerRewarded(winner, rewardAmount);
+        }
+    }
+
+    function withdrawFees() public onlyOwner {
+        uint256 balance = gamingToken.balanceOf(address(this));
+        gamingToken.transfer(owner(), balance);
+    }
+}
