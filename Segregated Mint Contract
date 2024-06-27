@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract SegregatedMint is ERC721, Ownable {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
+
+    enum MintStatus { INACTIVE, WHITELIST, WAITLIST, ALLOWLIST }
+    MintStatus public currentStatus;
+
+    uint256 public maxSupply;
+    uint256 public mintPrice;
+
+    mapping(address => bool) public whitelist;
+    mapping(address => bool) public waitlist;
+    mapping(address => bool) public allowlist;
+    mapping(address => bool) public hasMinted;
+
+    event Minted(address indexed minter, uint256 tokenId);
+    event StatusChanged(MintStatus newStatus);
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 _maxSupply,
+        uint256 _mintPrice
+    ) ERC721(name, symbol) {
+        maxSupply = _maxSupply;
+        mintPrice = _mintPrice;
+    }
+
+    modifier onlyWhitelisted() {
+        require(currentStatus == MintStatus.WHITELIST, "Whitelist minting not active");
+        require(whitelist[msg.sender], "Not whitelisted");
+        _;
+    }
+
+    modifier onlyWaitlisted() {
+        require(currentStatus == MintStatus.WAITLIST, "Waitlist minting not active");
+        require(waitlist[msg.sender], "Not waitlisted");
+        _;
+    }
+
+    modifier onlyAllowlisted() {
+        require(currentStatus == MintStatus.ALLOWLIST, "Allowlist minting not active");
+        require(allowlist[msg.sender], "Not allowlisted");
+        _;
+    }
+
+    modifier hasNotMinted() {
+        require(!hasMinted[msg.sender], "Address has already minted");
+        _;
+    }
+
+    function setMintStatus(MintStatus _status) external onlyOwner {
+        currentStatus = _status;
+        emit StatusChanged(_status);
+    }
+
+    function addToWhitelist(address[] memory addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            whitelist[addresses[i]] = true;
+        }
+    }
+
+    function addToWaitlist(address[] memory addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            waitlist[addresses[i]] = true;
+        }
+    }
+
+    function addToAllowlist(address[] memory addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            allowlist[addresses[i]] = true;
+        }
+    }
+
+    function mintWhitelist() external payable onlyWhitelisted hasNotMinted {
+        _mintToken();
+    }
+
+    function mintWaitlist() external payable onlyWaitlisted hasNotMinted {
+        _mintToken();
+    }
+
+    function mintAllowlist() external payable onlyAllowlisted hasNotMinted {
+        _mintToken();
+    }
+
+    function _mintToken() internal {
+        require(_tokenIds.current() < maxSupply, "Max supply reached");
+        require(msg.value == mintPrice, "Incorrect ETH amount");
+
+        _tokenIds.increment();
+        uint256 newTokenId = _tokenIds.current();
+        _safeMint(msg.sender, newTokenId);
+        hasMinted[msg.sender] = true;
+
+        emit Minted(msg.sender, newTokenId);
+    }
+
+    function withdraw() external onlyOwner {
+        uint256 balance = address(this).balance;
+        payable(owner()).transfer(balance);
+    }
+}
