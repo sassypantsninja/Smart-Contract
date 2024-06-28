@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MultiMarketplaceNFT is ERC721URIStorage, Ownable {
+    constructor(string memory name, string memory symbol) ERC721(name, symbol) {}
+
+    function mint(address to, uint256 tokenId, string memory tokenURI) external onlyOwner {
+        _mint(to, tokenId);
+        _setTokenURI(tokenId, tokenURI);
+    }
+
+    function setApprovalForAll(address operator, bool approved) public override {
+        super.setApprovalForAll(operator, approved);
+    }
+
+    function approve(address to, uint256 tokenId) public override {
+        super.approve(to, tokenId);
+    }
+
+    function listOnOpenSea(address owner, uint256 tokenId) external onlyOwner {
+        require(ownerOf(tokenId) == owner, "Not the owner");
+        setApprovalForAll(address(0x1E0049783F008A0085193E00003D00cd54003c71), true); // OpenSea's proxy contract address
+    }
+
+    function listOnRarible(address owner, uint256 tokenId) external onlyOwner {
+        require(ownerOf(tokenId) == owner, "Not the owner");
+        approve(address(0xF6793da657495ffeFF9Ee6350824910Abc21356C), tokenId); // Rarible's proxy contract address
+    }
+
+    function listOnMarketplace(address marketplaceAddress, address owner, uint256 tokenId) external onlyOwner {
+        require(ownerOf(tokenId) == owner, "Not the owner");
+        approve(marketplaceAddress, tokenId);
+    }
+}
