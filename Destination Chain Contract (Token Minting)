@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract BridgeDestination is ERC20, Ownable {
+    mapping(bytes32 => bool) public processedTransactions;
+
+    event TokensMinted(address indexed user, uint256 amount, bytes32 indexed transactionHash);
+
+    constructor() ERC20("Bridged Token", "BTK") {}
+
+    function mintTokens(address to, uint256 amount, bytes32 transactionHash) external onlyOwner {
+        require(!processedTransactions[transactionHash], "Transaction already processed");
+        _mint(to, amount);
+        processedTransactions[transactionHash] = true;
+        emit TokensMinted(to, amount, transactionHash);
+    }
+
+    function burnTokens(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+}
