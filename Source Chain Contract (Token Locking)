@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract BridgeSource is Ownable {
+    IERC20 public token;
+
+    event TokensLocked(address indexed user, uint256 amount, string destinationAddress);
+
+    constructor(IERC20 _token) {
+        token = _token;
+    }
+
+    function lockTokens(uint256 amount, string memory destinationAddress) external {
+        require(token.transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        emit TokensLocked(msg.sender, amount, destinationAddress);
+    }
+
+    function withdrawTokens(address to, uint256 amount) external onlyOwner {
+        require(token.transfer(to, amount), "Transfer failed");
+    }
+}
