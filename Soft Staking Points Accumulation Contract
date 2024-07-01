@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract SoftStaking is Ownable {
+    IERC20 public token;
+    uint256 public pointsPerSecond;
+
+    struct Staker {
+        uint256 balance;
+        uint256 points;
+        uint256 lastUpdateTime;
+    }
+
+    mapping(address => Staker) public stakers;
+
+    event PointsUpdated(address indexed user, uint256 points);
+
+    constructor(IERC20 _token, uint256 _pointsPerSecond) {
+        token = _token;
+        pointsPerSecond = _pointsPerSecond;
+    }
+
+    function updatePoints(address user) internal {
+        Staker storage staker = stakers[user];
+        uint256 timeDifference = block.timestamp - staker.lastUpdateTime;
+        staker.points += staker.balance * pointsPerSecond * timeDifference;
+        staker.lastUpdateTime = block.timestamp;
+        emit PointsUpdated(user, staker.points);
+    }
+
+    function depositTokens(uint256 amount) external {
+        require(token.transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        updatePoints(msg.sender);
+        stakers[msg.sender].balance += amount;
+    }
+
+    function withdrawTokens(uint256 amount) external {
+        require(stakers[msg.sender].balance >= amount, "Insufficient balance");
+        updatePoints(msg.sender);
+        stakers[msg.sender].balance -= amount;
+        require(token.transfer(msg.sender, amount), "Transfer failed");
+    }
+
+    function claimPoints() external {
+        updatePoints(msg.sender);
+        uint256 points = stakers[msg.sender].points;
+        stakers[msg.sender].points = 0;
+        // Add logic for rewarding points here (e.g., transfer reward tokens)
+    }
+
+    function setPointsPerSecond(uint256 _pointsPerSecond) external onlyOwner {
+        pointsPerSecond = _pointsPerSecond;
+    }
+}
