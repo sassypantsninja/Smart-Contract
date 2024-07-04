@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CexDexIntegration is Ownable {
+    IERC20 public token;
+    address public dexAddress;
+
+    event TradeExecuted(address indexed user, uint256 amount, uint256 price, string tradeType);
+
+    constructor(IERC20 _token, address _dexAddress) {
+        token = _token;
+        dexAddress = _dexAddress;
+    }
+
+    // Function to be called by off-chain service with CEX data
+    function executeTrade(address user, uint256 amount, uint256 price, string memory tradeType) external onlyOwner {
+        require(amount > 0, "Amount must be greater than 0");
+
+        if (keccak256(abi.encodePacked(tradeType)) == keccak256("buy")) {
+            // Logic for buy trade on DEX
+            require(token.transferFrom(user, dexAddress, amount), "Token transfer failed");
+        } else if (keccak256(abi.encodePacked(tradeType)) == keccak256("sell")) {
+            // Logic for sell trade on DEX
+            require(token.transferFrom(dexAddress, user, amount), "Token transfer failed");
+        } else {
+            revert("Invalid trade type");
+        }
+
+        emit TradeExecuted(user, amount, price, tradeType);
+    }
+
+    function setDexAddress(address _dexAddress) external onlyOwner {
+        dexAddress = _dexAddress;
+    }
+
+    function setTokenAddress(IERC20 _token) external onlyOwner {
+        token = _token;
+    }
+}
