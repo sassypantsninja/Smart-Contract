@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract SybilDefense is Ownable {
+    IERC20 public stakingToken;
+    uint256 public minimumStake;
+    mapping(address => uint256) public stakes;
+    mapping(address => bool) public approvedUsers;
+    uint256 public approvalThreshold;
+
+    event UserStaked(address indexed user, uint256 amount);
+    event UserApproved(address indexed user, uint256 totalStake);
+    event UserReported(address indexed user, address indexed reporter, string reason);
+
+    constructor(IERC20 _stakingToken, uint256 _minimumStake, uint256 _approvalThreshold) {
+        stakingToken = _stakingToken;
+        minimumStake = _minimumStake;
+        approvalThreshold = _approvalThreshold;
+    }
+
+    function stake(uint256 amount) external {
+        require(amount >= minimumStake, "Stake amount is below the minimum requirement");
+
+        stakingToken.transferFrom(msg.sender, address(this), amount);
+        stakes[msg.sender] += amount;
+
+        emit UserStaked(msg.sender, amount);
+
+        if (stakes[msg.sender] >= approvalThreshold) {
+            approvedUsers[msg.sender] = true;
+            emit UserApproved(msg.sender, stakes[msg.sender]);
+        }
+    }
+
+    function reportSybil(address user, string memory reason) external {
+        require(approvedUsers[msg.sender], "Only approved users can report");
+        require(approvedUsers[user], "Cannot report unapproved users");
+
+        approvedUsers[user] = false;  // Basic response to a report
+        emit UserReported(user, msg.sender, reason);
+    }
+
+    function withdrawStake(uint256 amount) external {
+        require(stakes[msg.sender] >= amount, "Insufficient stake to withdraw");
+
+        stakes[msg.sender] -= amount;
+        stakingToken.transfer(msg.sender, amount);
+
+        if (stakes[msg.sender] < approvalThreshold) {
+            approvedUsers[msg.sender] = false;
+        }
+    }
+
+    function setMinimumStake(uint256 _minimumStake) external onlyOwner {
+        minimumStake = _minimumStake;
+    }
+
+    function setApprovalThreshold(uint256 _approvalThreshold) external onlyOwner {
+        approvalThreshold = _approvalThreshold;
+    }
+}
