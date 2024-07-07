@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
+contract NFTStaking is Ownable {
+    using SafeMath for uint256;
+
+    IERC721 public nftContract;
+    uint256 public rewardRate; // Reward rate per second per NFT
+    mapping(uint256 => address) public tokenOwner;
+    mapping(uint256 => uint256) public stakingStartTime;
+    mapping(address => uint256) public rewards;
+
+    event Staked(address indexed user, uint256 tokenId, uint256 time);
+    event Unstaked(address indexed user, uint256 tokenId, uint256 time);
+    event RewardClaimed(address indexed user, uint256 reward, uint256 time);
+
+    constructor(IERC721 _nftContract, uint256 _rewardRate) {
+        nftContract = _nftContract;
+        rewardRate = _rewardRate;
+    }
+
+    function stake(uint256 tokenId) external {
+        require(nftContract.ownerOf(tokenId) == msg.sender, "Not the owner");
+        require(tokenOwner[tokenId] == address(0), "Already staked");
+
+        nftContract.transferFrom(msg.sender, address(this), tokenId);
+
+        tokenOwner[tokenId] = msg.sender;
+        stakingStartTime[tokenId] = block.timestamp;
+
+        emit Staked(msg.sender, tokenId, block.timestamp);
+    }
+
+    function unstake(uint256 tokenId) external {
+        require(tokenOwner[tokenId] == msg.sender, "Not the staker");
+
+        uint256 stakingDuration = block.timestamp.sub(stakingStartTime[tokenId]);
+        uint256 reward = stakingDuration.mul(rewardRate);
+
+        rewards[msg.sender] = rewards[msg.sender].add(reward);
+
+        nftContract.transferFrom(address(this), msg.sender, tokenId);
+
+        tokenOwner[tokenId] = address(0);
+        stakingStartTime[tokenId] = 0;
+
+        emit Unstaked(msg.sender, tokenId, block.timestamp);
+    }
+
+    function claimReward() external {
+        uint256 reward = rewards[msg.sender];
+        require(reward > 0, "No rewards to claim");
+
+        rewards[msg.sender] = 0;
+
+        // Logic to transfer rewards (e.g., ERC20 tokens) to the user
+        // ERC20Token.transfer(msg.sender, reward);
+
+        emit RewardClaimed(msg.sender, reward, block.timestamp);
+    }
+
+    function getStakedTokens(address user) external view returns (uint256[] memory) {
+        uint256 totalTokens = nftContract.balanceOf(address(this));
+        uint256[] memory stakedTokens = new uint256[](totalTokens);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < totalTokens; i++) {
+            if (tokenOwner[i] == user) {
+                stakedTokens[index] = i;
+                index++;
+            }
+        }
+
+        return stakedTokens;
+    }
+
+    function pendingRewards(address user) external view returns (uint256) {
+        uint256 totalReward = rewards[user];
+        uint256 totalTokens = nftContract.balanceOf(address(this));
+
+        for (uint256 i = 0; i < totalTokens; i++) {
+            if (tokenOwner[i] == user) {
+                uint256 stakingDuration = block.timestamp.sub(stakingStartTime[i]);
+                totalReward = totalReward.add(stakingDuration.mul(rewardRate));
+            }
+        }
+
+        return totalReward;
+    }
+
+    function setRewardRate(uint256 _rewardRate) external onlyOwner {
+        rewardRate = _rewardRate;
+    }
+}
