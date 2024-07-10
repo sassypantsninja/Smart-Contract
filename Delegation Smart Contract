@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract Delegation is Ownable {
+    IERC20 public token;
+    mapping(address => mapping(address => uint256)) public allowances;
+
+    event Delegated(address indexed owner, address indexed delegate, uint256 amount);
+    event Revoked(address indexed owner, address indexed delegate);
+    event TransferDelegated(address indexed delegate, address indexed from, address indexed to, uint256 amount);
+
+    constructor(IERC20 _token) {
+        token = _token;
+    }
+
+    /**
+     * @dev Delegate an allowance to another address.
+     * @param delegate The address which is allowed to spend tokens.
+     * @param amount The amount of tokens allowed to be spent.
+     */
+    function delegate(address delegate, uint256 amount) external {
+        allowances[msg.sender][delegate] = amount;
+        emit Delegated(msg.sender, delegate, amount);
+    }
+
+    /**
+     * @dev Revoke a delegate's allowance.
+     * @param delegate The address whose allowance is revoked.
+     */
+    function revoke(address delegate) external {
+        allowances[msg.sender][delegate] = 0;
+        emit Revoked(msg.sender, delegate);
+    }
+
+    /**
+     * @dev Transfer tokens using the delegated allowance.
+     * @param from The address from which tokens are transferred.
+     * @param to The address to which tokens are transferred.
+     * @param amount The amount of tokens to be transferred.
+     */
+    function transferFrom(address from, address to, uint256 amount) external {
+        require(allowances[from][msg.sender] >= amount, "Delegation: allowance exceeded");
+        require(token.transferFrom(from, to, amount), "Delegation: transfer failed");
+
+        allowances[from][msg.sender] -= amount;
+        emit TransferDelegated(msg.sender, from, to, amount);
+    }
+}
