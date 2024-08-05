@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+contract MassLiquidations is Ownable, ReentrancyGuard {
+    ERC20 public collateralToken;
+    ERC20 public debtToken;
+    
+    struct Position {
+        uint256 collateralAmount;
+        uint256 debtAmount;
+    }
+
+    mapping(address => Position) public positions;
+    uint256 public collateralizationRatio = 150; // 150%
+    uint256 public liquidationPenalty = 10; // 10%
+
+    event Liquidated(address indexed borrower, address indexed liquidator, uint256 repayAmount, uint256 collateralSeized);
+
+    constructor(address _collateralToken, address _debtToken) {
+        collateralToken = ERC20(_collateralToken);
+        debtToken = ERC20(_debtToken);
+    }
+
+    function setCollateralizationRatio(uint256 newRatio) external onlyOwner {
+        collateralizationRatio = newRatio;
+    }
+
+    function setLiquidationPenalty(uint256 newPenalty) external onlyOwner {
+        liquidationPenalty = newPenalty;
+    }
+
+    function addCollateral(address borrower, uint256 amount) external nonReentrant {
+        require(collateralToken.transferFrom(msg.sender, address(this), amount), "Collateral transfer failed");
+        positions[borrower].collateralAmount += amount;
+    }
+
+    function removeCollateral(uint256 amount) external nonReentrant {
+        require(positions[msg.sender].collateralAmount >= amount, "Insufficient collateral");
+        require(positions[msg.sender].collateralAmount - amount >= positions[msg.sender].debtAmount * collateralizationRatio / 100, "Insufficient collateral after removal");
+        positions[msg.sender].collateralAmount -= amount;
+        require(collateralToken.transfer(msg.sender, amount), "Collateral transfer failed");
+    }
+
+    function borrow(uint256 amount) external nonReentrant {
+        require(positions[msg.sender].collateralAmount * 100 / collateralizationRatio >= positions[msg.sender].debtAmount + amount, "Insufficient collateral");
+        positions[msg.sender].debtAmount += amount;
+        require(debtToken.transfer(msg.sender, amount), "Debt token transfer failed");
+    }
+
+    function repay(uint256 amount) external nonReentrant {
+        require(positions[msg.sender].debtAmount >= amount, "Exceeds debt amount");
+        require(debtToken.transferFrom(msg.sender, address(this), amount), "Debt token transfer failed");
+        positions[msg.sender].debtAmount -= amount;
+    }
+
+    function liquidate(address[] calldata borrowers) external nonReentrant {
+        for (uint256 i = 0; i < borrowers.length; i++) {
+            address borrower = borrowers[i];
+            Position storage position = positions[borrower];
+            uint256 requiredCollateral = position.debtAmount * collateralizationRatio / 100;
+            if (position.collateralAmount < requiredCollateral) {
+                uint256 repayAmount = position.debtAmount;
+                uint256 collateralSeized = position.collateralAmount;
+                
+                // Apply liquidation penalty
+                uint256 penalty = collateralSeized * liquidationPenalty / 100;
+                collateralSeized -= penalty;
+
+                require(debtToken.transferFrom(msg.sender, address(this), repayAmount), "Repay token transfer failed");
+                require(collateralToken.transfer(msg.sender, collateralSeized), "Collateral transfer failed");
+                
+                position.collateralAmount = 0;
+                position.debtAmount = 0;
+
+                emit Liquidated(borrower, msg.sender, repayAmount, collateralSeized);
+            }
+        }
+    }
+}
