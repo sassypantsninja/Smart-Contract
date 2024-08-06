@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
+contract DepeggingStableCoin is ERC20, Ownable {
+    AggregatorV3Interface internal priceFeed;
+    uint256 public constant DECIMALS = 18;
+    uint256 public constant TARGET_PRICE = 1 * 10**DECIMALS; // Target price $1
+
+    event EmergencyTriggered();
+    event Minted(address indexed to, uint256 amount);
+    event Burned(address indexed from, uint256 amount);
+
+    constructor(address _priceFeed) ERC20("StableCoin", "STC") {
+        priceFeed = AggregatorV3Interface(_priceFeed);
+    }
+
+    function getPrice() public view returns (uint256) {
+        (,int256 price,,,) = priceFeed.latestRoundData();
+        return uint256(price) * 10**10; // Adjusting to 18 decimals
+    }
+
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+        emit Minted(to, amount);
+    }
+
+    function burn(address from, uint256 amount) external onlyOwner {
+        _burn(from, amount);
+        emit Burned(from, amount);
+    }
+
+    function checkPrice() public view returns (bool) {
+        uint256 currentPrice = getPrice();
+        return currentPrice >= (TARGET_PRICE * 95 / 100) && currentPrice <= (TARGET_PRICE * 105 / 100); // 5% tolerance
+    }
+
+    function emergencyAction() external onlyOwner {
+        require(!checkPrice(), "Stablecoin is within acceptable range");
+        emit EmergencyTriggered();
+        // Implement necessary actions, like halting trades, adjusting collateral, etc.
+    }
+}
