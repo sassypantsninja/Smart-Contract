@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract PhaverToken is ERC20, Ownable {
+    constructor(uint256 initialSupply) ERC20("PhaverToken", "PHVR") {
+        _mint(msg.sender, initialSupply);
+    }
+
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
+
+    function burn(address from, uint256 amount) external onlyOwner {
+        _burn(from, amount);
+    }
+}
+
+contract PhaverPlatform is Ownable {
+    PhaverToken public phaverToken;
+
+    struct Post {
+        uint256 id;
+        address author;
+        string content;
+        uint256 upvotes;
+        uint256 downvotes;
+        uint256 timestamp;
+    }
+
+    struct User {
+        uint256 reputation;
+        uint256 totalPosts;
+        mapping(uint256 => uint256) postRewards;
+    }
+
+    uint256 public postCount = 0;
+    mapping(uint256 => Post) public posts;
+    mapping(address => User) public users;
+
+    event PostCreated(uint256 postId, address indexed author, string content, uint256 timestamp);
+    event PostUpvoted(uint256 postId, address indexed voter);
+    event PostDownvoted(uint256 postId, address indexed voter);
+    event RewardsClaimed(address indexed user, uint256 amount);
+
+    constructor(address tokenAddress) {
+        phaverToken = PhaverToken(tokenAddress);
+    }
+
+    function createPost(string memory content) external {
+        postCount++;
+        posts[postCount] = Post(postCount, msg.sender, content, 0, 0, block.timestamp);
+        users[msg.sender].totalPosts++;
+
+        emit PostCreated(postCount, msg.sender, content, block.timestamp);
+    }
+
+    function upvotePost(uint256 postId) external {
+        require(posts[postId].id != 0, "Post does not exist");
+
+        posts[postId].upvotes++;
+        users[posts[postId].author].reputation++;
+        users[posts[postId].author].postRewards[postId] += 1 * 10**18; // Reward 1 PHVR per upvote
+
+        emit PostUpvoted(postId, msg.sender);
+    }
+
+    function downvotePost(uint256 postId) external {
+        require(posts[postId].id != 0, "Post does not exist");
+
+        posts[postId].downvotes++;
+        users[posts[postId].author].reputation--;
+
+        emit PostDownvoted(postId, msg.sender);
+    }
+
+    function claimRewards(uint256 postId) external {
+        require(users[msg.sender].postRewards[postId] > 0, "No rewards to claim");
+
+        uint256 reward = users[msg.sender].postRewards[postId];
+        users[msg.sender].postRewards[postId] = 0;
+        
+        phaverToken.mint(msg.sender, reward);
+
+        emit RewardsClaimed(msg.sender, reward);
+    }
+
+    function getPost(uint256 postId) external view returns (Post memory) {
+        return posts[postId];
+    }
+
+    function getReputation(address user) external view returns (uint256) {
+        return users[user].reputation;
+    }
+}
