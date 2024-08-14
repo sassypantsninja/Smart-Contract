@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract TokenRebate is Ownable {
+    ERC20 public rebateToken;
+    uint256 public rebatePercentage; // Percentage of the rebate in basis points (1% = 100 basis points)
+
+    mapping(address => uint256) public rebates; // Tracks the rebate amount for each user
+
+    event RebateIssued(address indexed user, uint256 amount);
+
+    constructor(address tokenAddress, uint256 initialRebatePercentage) {
+        rebateToken = ERC20(tokenAddress);
+        rebatePercentage = initialRebatePercentage;
+    }
+
+    function performAction(uint256 amount) external {
+        // Simulate performing an action with the rebate
+        // In a real-world scenario, this function would involve some business logic
+
+        uint256 rebateAmount = (amount * rebatePercentage) / 10000; // Calculate the rebate
+        rebates[msg.sender] += rebateAmount; // Accumulate the rebate amount for the user
+
+        emit RebateIssued(msg.sender, rebateAmount);
+    }
+
+    function claimRebate() external {
+        uint256 rebateAmount = rebates[msg.sender];
+        require(rebateAmount > 0, "No rebate available");
+
+        rebates[msg.sender] = 0; // Reset the rebate balance
+        require(rebateToken.transfer(msg.sender, rebateAmount), "Token transfer failed");
+
+        emit RebateIssued(msg.sender, rebateAmount);
+    }
+
+    function setRebatePercentage(uint256 newPercentage) external onlyOwner {
+        require(newPercentage <= 10000, "Rebate percentage too high"); // Max 100%
+        rebatePercentage = newPercentage;
+    }
+
+    function withdrawTokens(uint256 amount) external onlyOwner {
+        require(rebateToken.transfer(msg.sender, amount), "Token transfer failed");
+    }
+
+    function depositTokens(uint256 amount) external onlyOwner {
+        require(rebateToken.transferFrom(msg.sender, address(this), amount), "Token transfer failed");
+    }
+}
