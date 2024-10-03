@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract FlashLoan {
+    // Address of the token being loaned
+    IERC20 public token;
+    
+    // Owner of the contract (for governance or fee collection)
+    address public owner;
+
+    // Fee charged for the flash loan (in basis points, e.g., 0.3% = 30 basis points)
+    uint256 public feeBasisPoints = 30;
+    uint256 public constant MAX_BASIS_POINTS = 10000; // 100% = 10000 basis points
+
+    event Loan(address borrower, uint256 amount, uint256 fee);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
+        _;
+    }
+
+    constructor(IERC20 _token) {
+        token = _token;
+        owner = msg.sender;
+    }
+
+    // Flash loan function
+    function flashLoan(uint256 amount) external {
+        uint256 initialBalance = token.balanceOf(address(this));
+        require(initialBalance >= amount, "Not enough liquidity");
+
+        // Calculate fee
+        uint256 fee = (amount * feeBasisPoints) / MAX_BASIS_POINTS;
+
+        // Send the loan amount to the borrower
+        token.transfer(msg.sender, amount);
+
+        // Expect the loan plus the fee to be paid back in the same transaction
+        (bool success,) = msg.sender.call(abi.encodeWithSignature("executeLoan(uint256)", amount));
+        require(success, "Loan execution failed");
+
+        // Ensure that the loan plus fee has been returned
+        uint256 finalBalance = token.balanceOf(address(this));
+        require(finalBalance >= initialBalance + fee, "Loan not paid back with fee");
+
+        // Emit event for tracking
+        emit Loan(msg.sender, amount, fee);
+    }
+
+    // Set new fee (only owner)
+    function setFee(uint256 newFeeBasisPoints) external onlyOwner {
+        require(newFeeBasisPoints <= MAX_BASIS_POINTS, "Fee too high");
+        feeBasisPoints = newFeeBasisPoints;
+    }
+
+    // Withdraw function for the owner to withdraw accumulated fees
+    function withdraw(uint256 amount) external onlyOwner {
+        token.transfer(owner, amount);
+    }
+
+    // Fallback function to reject any ETH sent directly to the contract
+    fallback() external payable {
+        revert("Contract does not accept ETH");
+    }
+
+    receive() external payable {
+        revert("Contract does not accept ETH");
+    }
+}
