@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract DataWarehouseInterface {
+    event DataRequest(uint256 requestId, address indexed requester, string query);
+    event DataVerified(uint256 requestId, address indexed verifier, string dataHash);
+    
+    struct DataRequestInfo {
+        address requester;
+        string query;
+        string dataHash;
+        bool isVerified;
+    }
+
+    mapping(uint256 => DataRequestInfo) public dataRequests;
+    uint256 public requestCount;
+    address public dataVerifier;  // Address of trusted verifier or oracle
+
+    constructor(address _dataVerifier) {
+        require(_dataVerifier != address(0), "Invalid verifier address");
+        dataVerifier = _dataVerifier;
+    }
+
+    modifier onlyVerifier() {
+        require(msg.sender == dataVerifier, "Not authorized");
+        _;
+    }
+
+    function requestData(string calldata query) external returns (uint256) {
+        requestCount += 1;
+        dataRequests[requestCount] = DataRequestInfo({
+            requester: msg.sender,
+            query: query,
+            dataHash: "",
+            isVerified: false
+        });
+        
+        emit DataRequest(requestCount, msg.sender, query);
+        return requestCount;
+    }
+
+    function submitDataProof(uint256 requestId, string calldata dataHash, bytes calldata zkProof) external onlyVerifier {
+        DataRequestInfo storage request = dataRequests[requestId];
+        require(request.requester != address(0), "Request does not exist");
+        require(!request.isVerified, "Data already verified");
+
+        // Verify ZK proof (implementation depends on Space and Time's ZK setup)
+        require(verifyZKProof(dataHash, zkProof), "ZK proof verification failed");
+
+        request.dataHash = dataHash;
+        request.isVerified = true;
+
+        emit DataVerified(requestId, msg.sender, dataHash);
+    }
+
+    function verifyZKProof(string memory dataHash, bytes memory zkProof) internal pure returns (bool) {
+        // Placeholder function to simulate ZK proof verification
+        // The actual implementation should use cryptographic ZK proof verification compatible with Space and Time
+        return true;
+    }
+
+    function getVerifiedData(uint256 requestId) external view returns (string memory) {
+        require(dataRequests[requestId].isVerified, "Data not verified");
+        return dataRequests[requestId].dataHash;
+    }
+
+    function setVerifier(address newVerifier) external onlyVerifier {
+        require(newVerifier != address(0), "Invalid verifier address");
+        dataVerifier = newVerifier;
+    }
+}
